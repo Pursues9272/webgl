@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <canvas id="initCvas" width="300" height="300"></canvas>
+    <script>
+        // 1.获取画布元素
+        let initCvas = document.getElementById("initCvas")
+        // 2.获取WebGl上下文
+        let gl = initCvas.getContext("webgl")
+        // 3.初始化视口
+        gl.viewport(0,0,initCvas.width,initCvas.height)
+        // 4.创建顶点数据
+        let vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+        const verts = [
+             .5,  .5,  0.0,
+            -.5,  .5,  0.0,
+             .5, -.5,  0.0,
+            -.5, -.5,  0.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts),gl.STATIC_DRAW);
+        let square = {buffer:vertexBuffer, vertSize:3, nVerts:4, primtype: gl.TRIANGLE_STRIP};
+        
+        // 5.创建矩阵
+        // 模型视图矩阵
+        let modelViewMatrix = new Float32Array(
+            [1, 0, 0, 0,
+             0, 1, 0, 0,
+             0, 0, 1, 0,
+             0, 0, -3.333, 1]
+        );
+        // 投影矩阵
+        let projectionMatrix = new Float32Array(
+            [2.41421, 0, 0, 0,
+             0, 2.41421, 0, 0,
+             0, 0, -1.002002, -1,
+             0, 0, -0.2002002, 0]
+        );
+
+        // 6.创建着色器
+        let vertexShaderSource =
+        "    attribute vec3 vertexPos;\n" +
+        "    uniform mat4 modelViewMatrix;\n" +
+        "    uniform mat4 projectionMatrix;\n" +
+        "    void main(void) {\n" +
+        "        gl_Position = projectionMatrix * modelViewMatrix * \n" + 
+        "               vec4(vertexPos, 1.0);\n" +
+        "    }\n";
+
+        let fragmentShaderSource =
+        "    void main(void) {\n" +
+        "    gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0);\n" +
+        "}\n";
+
+        // 7.初始化着色器
+        function createShader(gl, str, type) {
+          let shader;
+          if (type == "fragment") {
+              shader = gl.createShader(gl.FRAGMENT_SHADER);
+          } else if (type == "vertex") {
+              shader = gl.createShader(gl.VERTEX_SHADER);
+          } else {
+              return null;
+          }
+  
+          gl.shaderSource(shader, str);
+          gl.compileShader(shader);
+  
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+              alert(gl.getShaderInfoLog(shader));
+              return null;
+          }
+
+          return shader;
+        }
+        let shaderProgram, shaderVertexPositionAttribute, shaderProjectionMatrixUniform, shaderModelViewMatrixUniform;
+        let fragmentShader = createShader(gl, fragmentShaderSource, "fragment");
+        let vertexShader = createShader(gl, vertexShaderSource, "vertex");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        shaderVertexPositionAttribute = gl.getAttribLocation(shaderProgram, "vertexPos");
+        gl.enableVertexAttribArray(shaderVertexPositionAttribute);
+        
+        shaderProjectionMatrixUniform = gl.getUniformLocation(shaderProgram, "projectionMatrix");
+        shaderModelViewMatrixUniform = gl.getUniformLocation(shaderProgram, "modelViewMatrix");
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        // 8.绘制
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+                
+        gl.bindBuffer(gl.ARRAY_BUFFER, square.buffer);
+                
+        gl.useProgram(shaderProgram);
+                
+        gl.vertexAttribPointer(shaderVertexPositionAttribute, square.vertSize, gl.FLOAT, false, 0, 0);
+        gl.uniformMatrix4fv(shaderProjectionMatrixUniform, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderModelViewMatrixUniform, false, modelViewMatrix);
+                
+        gl.drawArrays(square.primtype, 0, square.nVerts);
+    </script>
+</body>
+</html>
